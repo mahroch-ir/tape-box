@@ -15,27 +15,28 @@ IMAGES_DIR = "tool_images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # ------------------ اتصال به Google Sheets ------------------
-SERVICE_ACCOUNT_FILE = "service_account.json"
-
-if os.path.exists(SERVICE_ACCOUNT_FILE):
-    creds = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=["https://www.googleapis.com/auth/spreadsheets",
-                "https://www.googleapis.com/auth/drive"]
+if "gcp_service_account" in st.secrets:
+    creds_dict = st.secrets["gcp_service_account"]
+    creds = Credentials.from_service_account_info(
+        creds_dict,
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.file"
+        ]
     )
 else:
-    st.error(f"⚠️ فایل {SERVICE_ACCOUNT_FILE} پیدا نشد.")
+    st.error("⚠️ لطفاً Service Account JSON را در Secrets تنظیم کنید.")
     st.stop()
 
 gc = gspread.authorize(creds)
 
-# اسم Google Sheet
+# ------------------ Google Sheet ------------------
 SHEET_NAME = "tools_data"
 try:
     sh = gc.open(SHEET_NAME)
 except gspread.SpreadsheetNotFound:
     sh = gc.create(SHEET_NAME)
-    sh.share(None, perm_type='anyone', role='writer')  # اختیاری: دسترسی برای همه
+    sh.share(None, perm_type='anyone', role='writer')  # دسترسی اختیاری
 
 worksheet = sh.sheet1
 
