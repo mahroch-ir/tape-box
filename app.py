@@ -15,13 +15,14 @@ IMAGES_DIR = "tool_images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # ------------------ اتصال به Google Sheets ------------------
+# استفاده از Service Account از طریق st.secrets
 if "gcp_service_account" in st.secrets:
     creds_dict = st.secrets["gcp_service_account"]
     creds = Credentials.from_service_account_info(
         creds_dict,
         scopes=[
             "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive.file"
+            "https://www.googleapis.com/auth/drive"
         ]
     )
 else:
@@ -30,13 +31,13 @@ else:
 
 gc = gspread.authorize(creds)
 
-# ------------------ Google Sheet ------------------
+# اسم Google Sheet
 SHEET_NAME = "tools_data"
 try:
     sh = gc.open(SHEET_NAME)
 except gspread.SpreadsheetNotFound:
     sh = gc.create(SHEET_NAME)
-    sh.share(None, perm_type='anyone', role='writer')  # دسترسی اختیاری
+    sh.share(None, perm_type='anyone', role='writer')  # اختیاری: برای دسترسی دیگران
 
 worksheet = sh.sheet1
 
