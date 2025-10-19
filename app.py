@@ -4,6 +4,7 @@ import pandas as pd
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 import json
+import tempfile
 import io
 
 # ------------------ تنظیمات صفحه ------------------
@@ -11,18 +12,25 @@ st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
 st.info("در حال اتصال به Google Drive...")
 
-# ------------------ احراز هویت با Service Account از Secrets ------------------
+# ------------------ احراز هویت با Service Account ------------------
 try:
     if "google" not in st.secrets or "client_config" not in st.secrets["google"]:
         st.error("❌ تنظیمات Google در secrets پیدا نشد. لطفاً client_config را اضافه کنید.")
         st.stop()
 
+    # خواندن JSON از secrets
     creds_json = json.loads(st.secrets["google"]["client_config"])
 
+    # ذخیره موقت JSON به فایل
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
+        json.dump(creds_json, f)
+        service_file = f.name
+
+    # پیکربندی GoogleAuth
     gauth = GoogleAuth()
-    gauth.credentials = None
-    gauth.auth_method = "service"
-    gauth.ServiceAuth(credentials=creds_json)
+    gauth.LoadServiceConfigSettings = lambda: None
+    gauth.settings['client_config_file'] = service_file
+    gauth.ServiceAuth()  # بدون پارامتر
 
     drive = GoogleDrive(gauth)
     st.success("✅ اتصال به Google Drive برقرار شد!")
@@ -68,9 +76,9 @@ except Exception as e:
     st.warning(f"⚠️ خطا در بارگذاری داده‌ها: {e}")
 
 # ------------------ بارگذاری داده‌ها ------------------
-if os.path.exists(DATA_FILE):
+try:
     df = pd.read_csv(DATA_FILE)
-else:
+except:
     df = pd.DataFrame(columns=["نام ابزار", "کد ابزار", "شماره قفسه", "GoogleDrive_ID"])
 
 # ------------------ منوی اصلی ------------------
@@ -87,8 +95,8 @@ if menu == "➕ افزودن ابزار":
 
     if st.button("💾 ذخیره ابزار"):
         if name and code and image_file:
-            # ------------------ آپلود عکس به Drive ------------------
             try:
+                # ------------------ آپلود عکس به Drive ------------------
                 img_drive = drive.CreateFile({
                     'title': f"{code}_{image_file.name}",
                     'parents': [{'id': folder_id}]
