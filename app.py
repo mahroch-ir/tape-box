@@ -5,26 +5,29 @@ import os
 import json
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from oauth2client.service_account import ServiceAccountCredentials
 
-# ------------------ تنظیمات صفحه ------------------
+# ------------------ تنظیمات اولیه ------------------
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
+
 st.info("در حال اتصال به Google Drive...")
 
 # ------------------ احراز هویت با Service Account ------------------
 try:
-    creds_dict = json.loads(st.secrets["google"]["client_config"])
-    
-    # ایجاد credentials مستقیم
-    scopes = ['https://www.googleapis.com/auth/drive']
-    credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scopes)
-    
-    gauth = GoogleAuth()
-    gauth.credentials = credentials
-    drive = GoogleDrive(gauth)
+    # خواندن تنظیمات از secrets.toml
+    client_config_json = st.secrets["google"]["client_config"]
+    client_config_dict = json.loads(client_config_json)
 
-    st.success("✅ اتصال با موفقیت برقرار شد!")
+    # ذخیره موقت برای PyDrive2
+    with open("client_secrets.json", "w", encoding="utf-8") as f:
+        json.dump(client_config_dict, f)
+
+    gauth = GoogleAuth()
+    gauth.LoadClientConfigFile("client_secrets.json")
+    gauth.ServiceAuth()
+
+    drive = GoogleDrive(gauth)
+    st.success("✅ اتصال به Google Drive برقرار شد!")
 
 except Exception as e:
     st.error(f"❌ خطا در اتصال به Google Drive: {e}")
@@ -35,10 +38,10 @@ DATA_FILE = "tools_data.csv"
 IMAGES_DIR = "tool_images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-# ------------------ پوشه مخصوص در گوگل درایو ------------------
+# ------------------ پوشه مخصوص در Google Drive ------------------
 folder_name = "ToolManager_Data"
 folders = drive.ListFile({
-    'q': f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    "q": f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
 }).GetList()
 
 if folders:
@@ -52,9 +55,9 @@ else:
 # ------------------ دانلود فایل CSV از Drive ------------------
 try:
     file_list = drive.ListFile({
-        'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+        "q": f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
     }).GetList()
-    
+
     if file_list:
         file_id = file_list[0]['id']
         downloaded = drive.CreateFile({'id': file_id})
@@ -100,23 +103,19 @@ if menu == "➕ افزودن ابزار":
 
             # آپلود CSV در Drive
             file_list = drive.ListFile({
-                'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+                "q": f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
             }).GetList()
+
             if file_list:
                 file_csv = file_list[0]
             else:
-                file_csv = drive.CreateFile({
-                    'title': 'tools_data.csv',
-                    'parents': [{'id': folder_id}]
-                })
+                file_csv = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+
             file_csv.SetContentFile(DATA_FILE)
             file_csv.Upload()
 
             # آپلود عکس
-            img_drive = drive.CreateFile({
-                'title': os.path.basename(img_path),
-                'parents': [{'id': folder_id}]
-            })
+            img_drive = drive.CreateFile({'title': os.path.basename(img_path), 'parents': [{'id': folder_id}]})
             img_drive.SetContentFile(img_path)
             img_drive.Upload()
 
