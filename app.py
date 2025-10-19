@@ -1,26 +1,27 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import os
 import json
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ------------------ تنظیمات صفحه ------------------
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
 st.info("در حال اتصال به Google Drive...")
 
-# ------------------ احراز هویت Google Drive ------------------
+# ------------------ احراز هویت با Service Account ------------------
 try:
-    creds_data = json.loads(st.secrets["google"]["client_config"])
-
-    # ذخیره موقت فایل JSON برای PyDrive2
-    with open("client_secrets.json", "w") as f:
-        json.dump(creds_data, f)
-
+    creds_dict = json.loads(st.secrets["google"]["client_config"])
+    
+    # ایجاد credentials مستقیم
+    scopes = ['https://www.googleapis.com/auth/drive']
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scopes)
+    
     gauth = GoogleAuth()
-    gauth.LoadServiceConfigFile("client_secrets.json")
-    gauth.ServiceAuth()
+    gauth.credentials = credentials
     drive = GoogleDrive(gauth)
 
     st.success("✅ اتصال با موفقیت برقرار شد!")
