@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 import os
@@ -6,7 +5,6 @@ import json
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 
-# ------------------ تنظیمات اولیه ------------------
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
 
@@ -15,18 +13,26 @@ st.info("در حال اتصال به Google Drive...")
 # ------------------ احراز هویت با Service Account ------------------
 try:
     # خواندن تنظیمات از secrets.toml
-    client_config_json = st.secrets["google"]["client_config"]
-    client_config_dict = json.loads(client_config_json)
+    creds_json = st.secrets["google"]["client_config"]
+    creds = json.loads(creds_json)
 
-    # ذخیره موقت برای PyDrive2
-    with open("client_secrets.json", "w", encoding="utf-8") as f:
-        json.dump(client_config_dict, f)
+    # ذخیره موقت فایل برای PyDrive2
+    with open("service_account.json", "w", encoding="utf-8") as f:
+        json.dump(creds, f)
 
     gauth = GoogleAuth()
-    gauth.LoadClientConfigFile("client_secrets.json")
-    gauth.ServiceAuth()
+    gauth.LoadSettingsFile = None  # غیرفعال‌کردن حالت پیش‌فرض
+    gauth.settings = {
+        "client_config_backend": "service",
+        "service_config": {
+            "client_json_file_path": "service_account.json"
+        }
+    }
 
+    # احراز هویت با Service Account
+    gauth.ServiceAuth()
     drive = GoogleDrive(gauth)
+
     st.success("✅ اتصال به Google Drive برقرار شد!")
 
 except Exception as e:
@@ -38,7 +44,7 @@ DATA_FILE = "tools_data.csv"
 IMAGES_DIR = "tool_images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-# ------------------ پوشه مخصوص در Google Drive ------------------
+# ------------------ پوشه مخصوص در گوگل درایو ------------------
 folder_name = "ToolManager_Data"
 folders = drive.ListFile({
     "q": f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
