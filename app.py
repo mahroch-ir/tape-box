@@ -2,8 +2,9 @@
 import streamlit as st
 import pandas as pd
 import os
-import json
 from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
+from google.oauth2.service_account import Credentials
 from pydrive2.drive import GoogleDrive
 
 # ------------------ تنظیمات صفحه ------------------
@@ -12,20 +13,18 @@ st.title("📦 مدیریت ابزارها")
 st.info("در حال اتصال به Google Drive...")
 
 # ------------------ احراز هویت با Service Account ------------------
+SERVICE_ACCOUNT_FILE = "service_account.json"  # مسیر فایل JSON سرویس اکانت
+
 try:
-    if "google" not in st.secrets or "client_config" not in st.secrets["google"]:
-        st.error("❌ تنظیمات Google در secrets.toml یافت نشد. لطفاً مقدار client_config را اضافه کن.")
+    # بررسی وجود فایل کلید
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        st.error("❌ فایل Service Account پیدا نشد. لطفاً 'service_account.json' را اضافه کنید.")
         st.stop()
 
-    # خواندن داده‌ها از secrets و ذخیره به فایل موقت JSON
-    creds_json = json.loads(st.secrets["google"]["client_config"])
-    with open("service_account.json", "w") as f:
-        json.dump(creds_json, f)
-
-    # پیکربندی GoogleAuth برای استفاده از Service Account
+    # پیکربندی GoogleAuth
     gauth = GoogleAuth()
-    gauth.LoadServiceConfigSettings = lambda: None  # جلوگیری از تنظیمات پیش‌فرض
-    gauth.ServiceAuth()  # با کلید Service Account لاگین می‌کند
+    gauth.settings['client_config_file'] = SERVICE_ACCOUNT_FILE
+    gauth.ServiceAuth()  # اتصال با Service Account
 
     drive = GoogleDrive(gauth)
     st.success("✅ اتصال به Google Drive برقرار شد!")
@@ -41,7 +40,6 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # ------------------ پوشه مخصوص در Google Drive ------------------
 FOLDER_NAME = "ToolManager_Data"
-
 try:
     folders = drive.ListFile({
         'q': f"title='{FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
@@ -54,8 +52,9 @@ try:
         folder = drive.CreateFile(folder_metadata)
         folder.Upload()
         folder_id = folder['id']
+
 except Exception as e:
-    st.error(f"⚠️ خطا در بررسی پوشه Google Drive: {e}")
+    st.error(f"⚠️ خطا در بررسی/ایجاد پوشه Google Drive: {e}")
     st.stop()
 
 # ------------------ دانلود فایل CSV از Drive ------------------
@@ -70,6 +69,7 @@ try:
         st.success("📥 داده‌ها از Google Drive بارگذاری شدند.")
     else:
         st.info("هیچ فایل داده‌ای در Drive پیدا نشد. (اولین اجرا)")
+
 except Exception as e:
     st.warning(f"⚠️ خطا در بارگذاری داده‌ها: {e}")
 
@@ -108,16 +108,22 @@ if menu == "➕ افزودن ابزار":
 
             try:
                 # آپلود CSV به Drive
-                file_list = drive.ListFile({'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"}).GetList()
+                file_list = drive.ListFile({
+                    'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+                }).GetList()
                 if file_list:
                     file_csv = file_list[0]
                 else:
                     file_csv = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+
                 file_csv.SetContentFile(DATA_FILE)
                 file_csv.Upload()
 
                 # آپلود عکس
-                img_drive = drive.CreateFile({'title': os.path.basename(img_path), 'parents': [{'id': folder_id}]})
+                img_drive = drive.CreateFile({
+                    'title': os.path.basename(img_path),
+                    'parents': [{'id': folder_id}]
+                })
                 img_drive.SetContentFile(img_path)
                 img_drive.Upload()
 
@@ -133,7 +139,7 @@ if menu == "➕ افزودن ابزار":
 elif menu == "📋 مشاهده ابزارها":
     st.header("📋 لیست ابزارها")
 
-    if len(df) == 0:
+    if df.empty:
         st.info("هیچ ابزاری ثبت نشده است.")
     else:
         search_code = st.text_input("🔍 جستجو بر اساس کد ابزار:")
@@ -143,7 +149,7 @@ elif menu == "📋 مشاهده ابزارها":
         else:
             filtered_df = df
 
-        if len(filtered_df) == 0:
+        if filtered_df.empty:
             st.warning("هیچ ابزاری با این کد پیدا نشد.")
         else:
             for _, row in filtered_df.iterrows():
