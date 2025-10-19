@@ -1,30 +1,28 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import os
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from google.oauth2.service_account import Credentials
-from pydrive2.drive import GoogleDrive
+import json
+import io
 
 # ------------------ تنظیمات صفحه ------------------
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
 st.info("در حال اتصال به Google Drive...")
 
-# ------------------ احراز هویت با Service Account ------------------
-SERVICE_ACCOUNT_FILE = "service_account.json"  # مسیر فایل JSON سرویس اکانت
-
+# ------------------ احراز هویت با Service Account از Secrets ------------------
 try:
-    # بررسی وجود فایل کلید
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        st.error("❌ فایل Service Account پیدا نشد. لطفاً 'service_account.json' را اضافه کنید.")
+    if "google" not in st.secrets or "client_config" not in st.secrets["google"]:
+        st.error("❌ تنظیمات Google در secrets پیدا نشد. لطفاً client_config را اضافه کنید.")
         st.stop()
 
-    # پیکربندی GoogleAuth
+    creds_json = json.loads(st.secrets["google"]["client_config"])
+
     gauth = GoogleAuth()
-    gauth.settings['client_config_file'] = SERVICE_ACCOUNT_FILE
-    gauth.ServiceAuth()  # اتصال با Service Account
+    gauth.credentials = None
+    gauth.auth_method = "service"
+    gauth.ServiceAuth(credentials=creds_json)
 
     drive = GoogleDrive(gauth)
     st.success("✅ اتصال به Google Drive برقرار شد!")
@@ -32,11 +30,6 @@ try:
 except Exception as e:
     st.error(f"❌ خطا در احراز هویت Google Drive: {e}")
     st.stop()
-
-# ------------------ مسیر فایل‌ها ------------------
-DATA_FILE = "tools_data.csv"
-IMAGES_DIR = "tool_images"
-os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # ------------------ پوشه مخصوص در Google Drive ------------------
 FOLDER_NAME = "ToolManager_Data"
@@ -58,6 +51,7 @@ except Exception as e:
     st.stop()
 
 # ------------------ دانلود فایل CSV از Drive ------------------
+DATA_FILE = "tools_data.csv"
 try:
     file_list = drive.ListFile({
         'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
@@ -77,7 +71,7 @@ except Exception as e:
 if os.path.exists(DATA_FILE):
     df = pd.read_csv(DATA_FILE)
 else:
-    df = pd.DataFrame(columns=["نام ابزار", "کد ابزار", "شماره قفسه", "مسیر عکس"])
+    df = pd.DataFrame(columns=["نام ابزار", "کد ابزار", "شماره قفسه", "GoogleDrive_ID"])
 
 # ------------------ منوی اصلی ------------------
 menu = st.sidebar.selectbox("📂 انتخاب صفحه", ["➕ افزودن ابزار", "📋 مشاهده ابزارها"])
@@ -93,39 +87,36 @@ if menu == "➕ افزودن ابزار":
 
     if st.button("💾 ذخیره ابزار"):
         if name and code and image_file:
-            img_path = os.path.join(IMAGES_DIR, image_file.name)
-            with open(img_path, "wb") as f:
-                f.write(image_file.getbuffer())
-
-            new_row = {
-                "نام ابزار": name,
-                "کد ابزار": code,
-                "شماره قفسه": shelf,
-                "مسیر عکس": img_path
-            }
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_csv(DATA_FILE, index=False)
-
+            # ------------------ آپلود عکس به Drive ------------------
             try:
-                # آپلود CSV به Drive
-                file_list = drive.ListFile({
-                    'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
-                }).GetList()
-                if file_list:
-                    file_csv = file_list[0]
-                else:
-                    file_csv = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
-
-                file_csv.SetContentFile(DATA_FILE)
-                file_csv.Upload()
-
-                # آپلود عکس
                 img_drive = drive.CreateFile({
-                    'title': os.path.basename(img_path),
+                    'title': f"{code}_{image_file.name}",
                     'parents': [{'id': folder_id}]
                 })
-                img_drive.SetContentFile(img_path)
+                img_drive.SetContentFile(image_file)
                 img_drive.Upload()
+
+                # ------------------ افزودن ردیف به DataFrame ------------------
+                new_row = {
+                    "نام ابزار": name,
+                    "کد ابزار": code,
+                    "شماره قفسه": shelf,
+                    "GoogleDrive_ID": img_drive['id']
+                }
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+                # ------------------ ذخیره CSV در Drive ------------------
+                csv_buffer = io.StringIO()
+                df.to_csv(csv_buffer, index=False)
+                csv_drive_list = drive.ListFile({
+                    'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+                }).GetList()
+                if csv_drive_list:
+                    csv_file = csv_drive_list[0]
+                else:
+                    csv_file = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+                csv_file.SetContentString(csv_buffer.getvalue())
+                csv_file.Upload()
 
                 st.success(f"✅ ابزار '{name}' ذخیره و در Google Drive آپلود شد!")
 
@@ -155,6 +146,10 @@ elif menu == "📋 مشاهده ابزارها":
             for _, row in filtered_df.iterrows():
                 st.subheader(f"{row['نام ابزار']} (کد: {row['کد ابزار']})")
                 st.text(f"📦 قفسه شماره: {int(row['شماره قفسه'])}")
-                if os.path.exists(row["مسیر عکس"]):
-                    st.image(row["مسیر عکس"], width=200)
+
+                # نمایش عکس از Google Drive
+                if row["GoogleDrive_ID"]:
+                    file_drive = drive.CreateFile({'id': row["GoogleDrive_ID"]})
+                    file_drive.GetContentFile(f"temp_{row['کد ابزار']}.png")
+                    st.image(f"temp_{row['کد ابزار']}.png", width=200)
                 st.markdown("---")
