@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import os
@@ -8,62 +9,68 @@ from pydrive2.drive import GoogleDrive
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
 st.title("📦 مدیریت ابزارها")
 
-st.info("در حال اتصال به Google Drive...")
+st.info("در حال اتصال به Google Drive... لطفاً کمی صبر کنید ⏳")
 
-# ------------------ احراز هویت با Service Account ------------------
+# ------------------ تست و آماده‌سازی احراز هویت ------------------
 try:
-    # خواندن تنظیمات از secrets.toml
-    creds_json = st.secrets["google"]["client_config"]
-    creds = json.loads(creds_json)
+    if "google" not in st.secrets or "client_config" not in st.secrets["google"]:
+        st.error("❌ کلید `client_config` در بخش Secrets یافت نشد. لطفاً آن را اضافه کنید.")
+        st.stop()
 
-    # ذخیره موقت فایل برای PyDrive2
-    with open("service_account.json", "w", encoding="utf-8") as f:
-        json.dump(creds, f)
+    # بارگذاری محتوای JSON از secrets
+    client_config_str = st.secrets["google"]["client_config"]
 
+    try:
+        client_config = json.loads(client_config_str)
+    except Exception as e:
+        st.error(f"❌ فایل client_config معتبر نیست (خطا در JSON): {e}")
+        st.write("🔍 بررسی کن که تمام \\n ها درست escape شده باشند.")
+        st.stop()
+
+    # ذخیره موقت برای PyDrive2
+    with open("service_account.json", "w") as f:
+        json.dump(client_config, f)
+
+    # پیکربندی GoogleAuth با Service Account
     gauth = GoogleAuth()
-    gauth.LoadSettingsFile = None  # غیرفعال‌کردن حالت پیش‌فرض
-    gauth.settings = {
-        "client_config_backend": "service",
-        "service_config": {
-            "client_json_file_path": "service_account.json"
-        }
-    }
-
-    # احراز هویت با Service Account
-    gauth.ServiceAuth()
+    gauth.LoadServiceConfigSettings = lambda: None  # جلوگیری از لود تنظیمات پیش‌فرض
+    gauth.ServiceAuth()  # با Service Account احراز هویت می‌کند
     drive = GoogleDrive(gauth)
 
-    st.success("✅ اتصال به Google Drive برقرار شد!")
+    st.success("✅ اتصال به Google Drive با موفقیت انجام شد!")
 
 except Exception as e:
     st.error(f"❌ خطا در اتصال به Google Drive: {e}")
     st.stop()
 
-# ------------------ مسیر فایل‌ها ------------------
+# ------------------ تنظیم مسیر فایل‌ها ------------------
 DATA_FILE = "tools_data.csv"
 IMAGES_DIR = "tool_images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-# ------------------ پوشه مخصوص در گوگل درایو ------------------
+# ------------------ بررسی یا ساخت پوشه مخصوص ------------------
 folder_name = "ToolManager_Data"
-folders = drive.ListFile({
-    "q": f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-}).GetList()
-
-if folders:
-    folder_id = folders[0]['id']
-else:
-    folder_metadata = {'title': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
-    folder = drive.CreateFile(folder_metadata)
-    folder.Upload()
-    folder_id = folder['id']
-
-# ------------------ دانلود فایل CSV از Drive ------------------
 try:
-    file_list = drive.ListFile({
-        "q": f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+    folders = drive.ListFile({
+        'q': f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
     }).GetList()
 
+    if folders:
+        folder_id = folders[0]['id']
+    else:
+        folder_metadata = {'title': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
+        folder = drive.CreateFile(folder_metadata)
+        folder.Upload()
+        folder_id = folder['id']
+except Exception as e:
+    st.error(f"⚠️ خطا در دسترسی به پوشه‌ی Google Drive: {e}")
+    st.stop()
+
+# ------------------ دانلود فایل داده‌ها ------------------
+try:
+    file_list = drive.ListFile({
+        'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+    }).GetList()
     if file_list:
         file_id = file_list[0]['id']
         downloaded = drive.CreateFile({'id': file_id})
@@ -72,15 +79,15 @@ try:
     else:
         st.info("هیچ فایل داده‌ای در Drive پیدا نشد. (اولین اجرا)")
 except Exception as e:
-    st.warning(f"⚠️ خطا در بارگذاری داده‌ها: {e}")
+    st.warning(f"⚠️ خطا در بارگذاری داده‌ها از Drive: {e}")
 
-# ------------------ بارگذاری داده‌ها ------------------
+# ------------------ بارگذاری داده‌ها در DataFrame ------------------
 if os.path.exists(DATA_FILE):
     df = pd.read_csv(DATA_FILE)
 else:
     df = pd.DataFrame(columns=["نام ابزار", "کد ابزار", "شماره قفسه", "مسیر عکس"])
 
-# ------------------ منو ------------------
+# ------------------ منوی اصلی ------------------
 menu = st.sidebar.selectbox("📂 انتخاب صفحه", ["➕ افزودن ابزار", "📋 مشاهده ابزارها"])
 
 # ------------------ افزودن ابزار ------------------
@@ -108,24 +115,23 @@ if menu == "➕ افزودن ابزار":
             df.to_csv(DATA_FILE, index=False)
 
             # آپلود CSV در Drive
-            file_list = drive.ListFile({
-                "q": f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
-            }).GetList()
+            try:
+                file_list = drive.ListFile({'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"}).GetList()
+                if file_list:
+                    file_csv = file_list[0]
+                else:
+                    file_csv = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+                file_csv.SetContentFile(DATA_FILE)
+                file_csv.Upload()
 
-            if file_list:
-                file_csv = file_list[0]
-            else:
-                file_csv = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+                # آپلود عکس
+                img_drive = drive.CreateFile({'title': os.path.basename(img_path), 'parents': [{'id': folder_id}]})
+                img_drive.SetContentFile(img_path)
+                img_drive.Upload()
 
-            file_csv.SetContentFile(DATA_FILE)
-            file_csv.Upload()
-
-            # آپلود عکس
-            img_drive = drive.CreateFile({'title': os.path.basename(img_path), 'parents': [{'id': folder_id}]})
-            img_drive.SetContentFile(img_path)
-            img_drive.Upload()
-
-            st.success(f"✅ ابزار '{name}' ذخیره و در Google Drive آپلود شد!")
+                st.success(f"✅ ابزار '{name}' ذخیره و در Google Drive آپلود شد!")
+            except Exception as e:
+                st.error(f"❌ خطا در آپلود به Drive: {e}")
         else:
             st.warning("⚠️ لطفاً تمام فیلدها را پر کنید.")
 
