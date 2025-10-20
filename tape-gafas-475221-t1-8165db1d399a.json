@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "tape-gafas-475221-t1",
+  "private_key_id": "8165db1d399a3ca663abfc14533b23f0d5a2940c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC3GWlYesWCh1j+\njLaUTelGdb5Z+d9NTed86lp4HnLo9O2Pxkow4jjxLVT4y7NyAftj6cf3iVZW6Wzj\nMs4pNzThPNuEBEoGEAk9efA000iTINGB6j1LKQBa0JIHMmfaJcawUYxmqQyrjVkA\nWVJmqTWWp5AxvxoIRbU5cer4yMQyYLRtgXSGvHsO6b0rfK9X0V24JE8mK8jlkhcc\ncrSsRdJAZnuvxo8RldagQGkHXLQD2J8U4olK0PUMMmbIXuu1+srUzZqSzzTL9sxs\na2XcDL9CqfcqnOssHg2aODFNEKBW6Qcl73f+W519RL0VYlbuz/FQIG9sYdIYwjzM\nwq0k3Bs3AgMBAAECggEAPso5nKyZj/4vUDfcIvam8VFOgleUstNs96L8fGXgvS/F\nSgFTjvj9UwPbOGjOtGGmnqhcuXBBChQJkc5p8atreHRgySCZbAPSz2DCNbNhF4dx\nIW69L0mzw/DzqwEnqSE8Rlno3onJfQk/hMWc4vTTGkODSPQCjuSs1bLRxBhBZA6+\nCcarWIn9hmY06IzWVuhLEaQh/uSpWje59IZV48JNZq5avBQXKPhqOXasxRdKZ//e\nysxB2R7hgLp20qqb37Lljjd4je8VY6lD8Ybc+2Z6mcj8+mg0/5idLa7nW6bZJn2n\nG/KuW7t0czy0qVkfJeu/qP9xNAsaEgbM5W13DzrXhQKBgQDkvF3HMEaJrsmJ6iJ6\nL5FSLtXvSxV9Kuz6VPiu+bkXbfkcHtkZR2b7KBGz95EFhhc6urWB5yH/AX9YErHx\ns78xFY+ikkbBUQMcnfJVggJQSbd6dHYNS0aOALyNnNLUZsfAM0EmZcEx8Lqj0S8q\nx0OZjoeB+vH5UWZNBRKD3AYwpQKBgQDM7H5uVtO7qfmDkW6KkUg9rcyziBB0jf+O\n5k7UaiGZOa/FRMV8y1r9AUmgYnOTHbkdBCLCLN5suFnRCIbRPOogM5A/DXW6EMn3\nl8+qy4hFp8mdR1jIIr3H5JHG2FzcfZIFYcyqbWf5cMo6u0w1kYLhxMkdD+IyVLOy\nczGPQ1uZqwKBgHXt/DefVy7TVAtsEJyIe9cwWJKIVqry/71NI+4qyFghFgd+jBXx\nb1HcZcwwvq9nZACelMhF34w3PG2vLdldAB0Rbb22xw4Sc5VEhdW6MvEsIJHdC6Rt\nBBJgpNYqXbSuzRv2EQf3/HSAFeoyBqx6kgrQpmLIfAs8AY+CJvqe7P4VAoGBAL1k\njW04/jNhYuQAU2Pp5hRrPtdml57BZkISBSU4eZj9wb/WUZeG8q8Gs59xnlOHkwCI\nQ/+mLGPa9dfFw6Q6YkAkp9o+fGHdBmy4eAvoVCfcbO/Zcup1gWTvkPNwIFMAEya6\nPsf8ma3mWmFxnXuc4pP6pc0gUvQlaHczE8jOfihFAoGBAKYmSAT5BulrXYspdFHP\nAbewKHuGJepjwCxcFUByvpV6YDfPvkWP9F896xfekbmGN8rjLGmCfcAVpE9ZzFfu\njB2Dsedmk9Tfpl/Fo9InGGvCeifOQ4uwki5ojwUCPIVOfaeJFtw1HXseh9nlVjLb\n9TmkiTNl7fhcfS1sGEpK6+Ij\n-----END PRIVATE KEY-----\n",
+  "client_email": "hashem@tape-gafas-475221-t1.iam.gserviceaccount.com",
+  "client_id": "113142628332576487518",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hashem%40tape-gafas-475221-t1.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
