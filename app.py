@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 from pydrive2.auth import GoogleAuth
@@ -6,6 +5,7 @@ from pydrive2.drive import GoogleDrive
 import json
 import tempfile
 import io
+import os
 
 # ------------------ تنظیمات صفحه ------------------
 st.set_page_config(page_title="مدیریت ابزارها", page_icon="🧰")
@@ -30,7 +30,7 @@ try:
     gauth = GoogleAuth()
     gauth.LoadServiceConfigSettings = lambda: None
     gauth.settings['client_config_file'] = service_file
-    gauth.ServiceAuth()  # بدون پارامتر
+    gauth.ServiceAuth()
 
     drive = GoogleDrive(gauth)
     st.success("✅ اتصال به Google Drive برقرار شد!")
@@ -62,7 +62,7 @@ except Exception as e:
 DATA_FILE = "tools_data.csv"
 try:
     file_list = drive.ListFile({
-        'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+        'q': f"title='{DATA_FILE}' and '{folder_id}' in parents and trashed=false"
     }).GetList()
     if file_list:
         file_id = file_list[0]['id']
@@ -101,7 +101,7 @@ if menu == "➕ افزودن ابزار":
                     'title': f"{code}_{image_file.name}",
                     'parents': [{'id': folder_id}]
                 })
-                img_drive.SetContentFile(image_file)
+                img_drive.content = io.BytesIO(image_file.getvalue())
                 img_drive.Upload()
 
                 # ------------------ افزودن ردیف به DataFrame ------------------
@@ -117,12 +117,12 @@ if menu == "➕ افزودن ابزار":
                 csv_buffer = io.StringIO()
                 df.to_csv(csv_buffer, index=False)
                 csv_drive_list = drive.ListFile({
-                    'q': f"title='tools_data.csv' and '{folder_id}' in parents and trashed=false"
+                    'q': f"title='{DATA_FILE}' and '{folder_id}' in parents and trashed=false"
                 }).GetList()
                 if csv_drive_list:
                     csv_file = csv_drive_list[0]
                 else:
-                    csv_file = drive.CreateFile({'title': 'tools_data.csv', 'parents': [{'id': folder_id}]})
+                    csv_file = drive.CreateFile({'title': DATA_FILE, 'parents': [{'id': folder_id}]})
                 csv_file.SetContentString(csv_buffer.getvalue())
                 csv_file.Upload()
 
@@ -158,6 +158,9 @@ elif menu == "📋 مشاهده ابزارها":
                 # نمایش عکس از Google Drive
                 if row["GoogleDrive_ID"]:
                     file_drive = drive.CreateFile({'id': row["GoogleDrive_ID"]})
-                    file_drive.GetContentFile(f"temp_{row['کد ابزار']}.png")
-                    st.image(f"temp_{row['کد ابزار']}.png", width=200)
+                    temp_path = f"temp_{row['کد ابزار']}.png"
+                    file_drive.GetContentFile(temp_path)
+                    st.image(temp_path, width=200)
+                    os.remove(temp_path)
+
                 st.markdown("---")
